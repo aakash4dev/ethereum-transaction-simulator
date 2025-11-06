@@ -29,7 +29,7 @@ To run this project, ensure you have the following installed:
    ```bash
    git clone https://github.com/aakash4dev/ethereum-transaction-simulator.git
    cd ethereum-transaction-simulator
-````
+   ```
 
 2. **Replace your private key**
    Open `main.go` and update the following line:
