@@ -18,7 +18,10 @@ type Config struct {
 	MaxTransactions int
 	DelaySeconds    int
 	RetryDelay      int
-	Mode            string // "transfer", "deploy", "interact", "all"
+	Mode            string // "transfer", "deploy", "interact", "all", "parallel"
+	MinBalance      string // Minimum balance to create wallets (default: 100000)
+	WalletCount     int    // Number of wallets to create (default: 1000)
+	FundingAmount   string // Amount to fund each wallet (default: 100)
 }
 
 // Load loads configuration from .env file and environment variables with defaults
@@ -38,6 +41,9 @@ func Load() *Config {
 		DelaySeconds:     getEnvInt("DELAY_SECONDS", 1),
 		RetryDelay:       getEnvInt("RETRY_DELAY", 10),
 		Mode:             getEnv("MODE", "all"),
+		MinBalance:        getEnv("MIN_BALANCE", "100000"),
+		WalletCount:       getEnvInt("WALLET_COUNT", 1000),
+		FundingAmount:     getEnv("FUNDING_AMOUNT", "100"),
 	}
 }
 

@@ -49,11 +49,16 @@ PRIVATE_KEY=your_private_key
 
 # Optional (defaults shown)
 RPC_URL=http://127.0.0.1:8545
-MODE=all                    # all, transfer, or deploy
+MODE=all                    # all, transfer, deploy, or parallel
 MAX_TRANSACTIONS=10000
 DELAY_SECONDS=1
 VALUE=1
 GAS_LIMIT=210000
+
+# Parallel mode settings (only for MODE=parallel)
+MIN_BALANCE=100000          # Minimum balance to create wallets (wei)
+WALLET_COUNT=1000          # Number of wallets to create
+FUNDING_AMOUNT=100         # Amount to fund each wallet (wei)
 ```
 
 ## Modes
@@ -61,6 +66,7 @@ GAS_LIMIT=210000
 - **`all`** (default) - Runs transfers and contract operations in parallel
 - **`transfer`** - Sends transactions to 25 random addresses
 - **`deploy`** - Deploys auto-generated smart contracts
+- **`parallel`** - Maximum TPS mode: Creates 1000 wallets (if balance > 100,000 wei), funds them, and sends transactions from ALL wallets simultaneously with no delays
 
 ## Features
 
@@ -68,6 +74,7 @@ GAS_LIMIT=210000
 - ✅ Sends to 25 randomly generated addresses
 - ✅ Thread-safe nonce management for parallel operations
 - ✅ Automatic contract deployment and interaction
+- ✅ **NEW**: Multi-wallet parallel mode - Creates 1000 wallets and sends transactions from all simultaneously
 
 ## Requirements
 
@@ -88,6 +95,26 @@ GAS_LIMIT=210000
 **"replacement transaction underpriced"**
 - Fixed in v0.0.1 - uses thread-safe nonce management
 
+## Parallel Mode (Maximum TPS)
+
+The `parallel` mode is designed for maximum transaction throughput:
+
+1. **Checks balance**: If balance > 100,000 wei, creates 1000 new wallets
+2. **Funds wallets**: Sends 100 wei to each new wallet in parallel
+3. **Sends transactions**: All wallets (original + 1000 new) send transactions simultaneously
+4. **No delays**: Maximum throughput with no artificial delays
+
+**Example:**
+```bash
+MODE=parallel
+MAX_TRANSACTIONS=1000
+MIN_BALANCE=100000
+WALLET_COUNT=1000
+FUNDING_AMOUNT=100
+```
+
+This will create 1000 wallets and send 1,001,000 total transactions (1 from original + 1000 from each of 1000 wallets).
+
 ## Project Structure
 
 ```
@@ -95,7 +122,8 @@ GAS_LIMIT=210000
 ├── internal/
 │   ├── config/             # Configuration (.env loader)
 │   ├── transaction/        # Transaction sending + nonce management
-│   └── contract/           # Contract deployment & interaction
+│   ├── contract/           # Contract deployment & interaction
+│   └── wallet/             # Wallet generation & management
 ├── scripts/
 │   ├── start-local-node.sh # Start Geth dev node
 │   ├── extract-key.go     # Extract private key from keystore
