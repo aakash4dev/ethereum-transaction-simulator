@@ -3,7 +3,6 @@ package transaction
 import (
 	"context"
 	"crypto/ecdsa"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -48,88 +47,75 @@ func NewParallelSender(client *ethclient.Client, chainID *big.Int, wallets []*Pa
 	}
 }
 
-// SendParallelTransactions sends transactions from all wallets in parallel
+// SendParallelTransactions sends transactions continuously from all wallets until balance runs out
 func (ps *ParallelSender) SendParallelTransactions(ctx context.Context) error {
 	var wg sync.WaitGroup
-	errChan := make(chan error, len(ps.wallets)*ps.config.MaxTransactions)
-	
-	// Use semaphore to limit concurrent operations (avoid overwhelming the node)
-	semaphore := make(chan struct{}, 100)
+	semaphore := make(chan struct{}, 2000)
 
+	// Launch continuous transaction sending from each wallet
 	for _, wallet := range ps.wallets {
 		wg.Add(1)
 		go func(w *ParallelWallet) {
 			defer wg.Done()
 			
 			rng := rand.New(rand.NewSource(rand.Int63()))
+			balanceCheckCounter := 0
 			
-			for i := 0; i < ps.config.MaxTransactions; i++ {
-				// Acquire semaphore
-				semaphore <- struct{}{}
-				
-				go func(txNum int) {
-					defer func() { <-semaphore }()
-					
-					// Select random recipient
-					randomIndex := rng.Intn(len(ps.recipients))
-					recipient := ps.recipients[randomIndex]
-
-					nonce, err := w.NonceManager.GetNextNonce(ctx)
+			// Continuous loop - send transactions until balance runs out
+			for {
+				// Check balance every 100 transactions to avoid slowing down
+				balanceCheckCounter++
+				if balanceCheckCounter%100 == 0 {
+					balance, err := ps.client.BalanceAt(ctx, w.Address, nil)
 					if err != nil {
-						errChan <- fmt.Errorf("wallet %s: failed to get nonce: %w", w.Address.Hex(), err)
 						return
 					}
 
 					gasPrice, err := ps.client.SuggestGasPrice(ctx)
 					if err != nil {
-						errChan <- fmt.Errorf("wallet %s: failed to get gas price: %w", w.Address.Hex(), err)
 						return
 					}
 
-					tx := types.NewTransaction(
-						nonce,
-						recipient,
-						ps.config.Value,
-						ps.config.GasLimit,
-						gasPrice,
-						ps.config.Data,
-					)
+					minRequired := new(big.Int).Mul(gasPrice, big.NewInt(int64(ps.config.GasLimit)))
+					minRequired.Add(minRequired, ps.config.Value)
 
-					signedTx, err := types.SignTx(tx, types.NewEIP155Signer(ps.chainID), w.PrivateKey)
-					if err != nil {
-						errChan <- fmt.Errorf("wallet %s: failed to sign transaction: %w", w.Address.Hex(), err)
-						return
+					if balance.Cmp(minRequired) < 0 {
+						return // Wallet out of balance
 					}
+				}
 
-					if err := ps.client.SendTransaction(ctx, signedTx); err != nil {
-						errChan <- fmt.Errorf("wallet %s: failed to send transaction: %w", w.Address.Hex(), err)
-						return
-					}
-				}(i)
+				// Acquire semaphore (non-blocking)
+				select {
+				case semaphore <- struct{}{}:
+					// Send transaction immediately
+					go func() {
+						defer func() { <-semaphore }()
+						
+						recipient := ps.recipients[rng.Intn(len(ps.recipients))]
+
+						nonce, _ := w.NonceManager.GetNextNonce(ctx)
+						gasPrice, _ := ps.client.SuggestGasPrice(ctx)
+
+						tx := types.NewTransaction(
+							nonce,
+							recipient,
+							ps.config.Value,
+							ps.config.GasLimit,
+							gasPrice,
+							ps.config.Data,
+						)
+
+						signedTx, _ := types.SignTx(tx, types.NewEIP155Signer(ps.chainID), w.PrivateKey)
+						ps.client.SendTransaction(ctx, signedTx)
+					}()
+				default:
+					// Semaphore full, continue immediately without blocking
+				}
 			}
 		}(wallet)
 	}
 
 	wg.Wait()
-	close(errChan)
-
-	// Collect errors (but don't fail on all errors - some may be expected)
-	errorCount := 0
-	for err := range errChan {
-		if err != nil {
-			errorCount++
-			// Log first few errors for debugging
-			if errorCount <= 5 {
-				fmt.Printf("Transaction error: %v\n", err)
-			}
-		}
-	}
-
-	if errorCount > 0 {
-		fmt.Printf("Total transaction errors: %d out of %d attempted\n", 
-			errorCount, len(ps.wallets)*ps.config.MaxTransactions)
-	}
-
 	return nil
 }
 

@@ -60,21 +60,14 @@ func runParallel(cfg *config.Config) {
 		os.Exit(1)
 	}
 
-	// Check balance
 	walletManager := wallet.NewManager(client, chainID, fundingAmount)
-	hasBalance, balance, err := walletManager.CheckBalance(ctx, fromAddress, minBalance)
+	hasBalance, _, err := walletManager.CheckBalance(ctx, fromAddress, minBalance)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to check balance: %s\n", err.Error())
 		os.Exit(1)
 	}
 
-	fmt.Printf("Account balance: %s wei\n", balance.String())
-	fmt.Printf("Minimum balance required: %s wei\n", minBalance.String())
-
-	// Prepare wallets list
 	allWallets := make([]*wallet.Wallet, 0)
-
-	// Add original wallet
 	originalNonceManager := transaction.NewNonceManager(client, fromAddress)
 	originalWallet := &wallet.Wallet{
 		PrivateKey:   privateKey,
@@ -83,35 +76,14 @@ func runParallel(cfg *config.Config) {
 		Client:       client,
 	}
 	allWallets = append(allWallets, originalWallet)
-	fmt.Printf("Added original wallet: %s\n", fromAddress.Hex())
 
-	// Create additional wallets if balance is sufficient
 	if hasBalance {
-		fmt.Printf("\nBalance sufficient! Creating %d additional wallets...\n", cfg.WalletCount)
-		
-		// Generate new wallets
 		newWallets := walletManager.GenerateWallets(cfg.WalletCount)
-		fmt.Printf("Generated %d new wallets\n", len(newWallets))
-
-		// Fund wallets in parallel
-		fmt.Printf("Funding wallets with %s wei each...\n", fundingAmount.String())
-		if err := walletManager.FundWallets(ctx, originalWallet, newWallets); err != nil {
-			fmt.Printf("Warning: Some wallets failed to fund: %v\n", err)
-		} else {
-			fmt.Printf("Successfully funded %d wallets\n", len(newWallets))
-		}
-
-		// Add new wallets to the list
+		walletManager.FundWallets(ctx, originalWallet, newWallets)
 		allWallets = append(allWallets, newWallets...)
-	} else {
-		fmt.Printf("Balance insufficient. Using only original wallet.\n")
 	}
 
-	fmt.Printf("\nTotal wallets ready: %d\n", len(allWallets))
-
-	// Generate random recipient addresses
 	randomAddresses := contract.GenerateRandomAddresses(25)
-	fmt.Printf("Generated 25 random recipient addresses\n")
 
 	// Convert wallets to parallel wallet format
 	parallelWallets := make([]*transaction.ParallelWallet, len(allWallets))
@@ -132,17 +104,6 @@ func runParallel(cfg *config.Config) {
 	}
 
 	parallelSender := transaction.NewParallelSender(client, chainID, parallelWallets, randomAddresses, parallelConfig)
-
-	// Send transactions in parallel from all wallets
-	fmt.Printf("\nStarting parallel transactions from %d wallets...\n", len(parallelWallets))
-	fmt.Printf("Each wallet will send %d transactions\n", cfg.MaxTransactions)
-	fmt.Printf("Total transactions: %d\n", len(parallelWallets)*cfg.MaxTransactions)
-	fmt.Printf("No delays - maximum throughput mode!\n\n")
-
-	if err := parallelSender.SendParallelTransactions(ctx); err != nil {
-		fmt.Printf("Error during parallel transactions: %v\n", err)
-	} else {
-		fmt.Printf("\nAll parallel transactions completed!\n")
-	}
+	parallelSender.SendParallelTransactions(ctx)
 }
 

@@ -24,10 +24,8 @@ type Wallet struct {
 
 // Manager manages multiple wallets for parallel transactions
 type Manager struct {
-	client      *ethclient.Client
-	chainID     *big.Int
-	wallets     []*Wallet
-	mu          sync.RWMutex
+	client       *ethclient.Client
+	chainID      *big.Int
 	fundingAmount *big.Int
 }
 
@@ -36,7 +34,6 @@ func NewManager(client *ethclient.Client, chainID *big.Int, fundingAmount *big.I
 	return &Manager{
 		client:       client,
 		chainID:      chainID,
-		wallets:      make([]*Wallet, 0),
 		fundingAmount: fundingAmount,
 	}
 }
@@ -63,26 +60,6 @@ func (m *Manager) GenerateWallets(n int) []*Wallet {
 	return wallets
 }
 
-// AddWallet adds a wallet to the manager
-func (m *Manager) AddWallet(wallet *Wallet) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.wallets = append(m.wallets, wallet)
-}
-
-// AddWallets adds multiple wallets to the manager
-func (m *Manager) AddWallets(wallets []*Wallet) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.wallets = append(m.wallets, wallets...)
-}
-
-// GetWallets returns all wallets
-func (m *Manager) GetWallets() []*Wallet {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.wallets
-}
 
 // FundWallets funds all wallets from the funding wallet in parallel
 func (m *Manager) FundWallets(ctx context.Context, fundingWallet *Wallet, wallets []*Wallet) error {
