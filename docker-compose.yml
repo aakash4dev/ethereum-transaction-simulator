@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ethereum-transaction-simulator
+    environment:
+      # Required - set these or use .env file
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - RPC_URL=${RPC_URL:-http://127.0.0.1:8545}
+      
+      # Optional - with defaults
+      - MODE=${MODE:-parallel}
+      - VALUE=${VALUE:-1}
+      - GAS_LIMIT=${GAS_LIMIT:-210000}
+      - MAX_TRANSACTIONS=${MAX_TRANSACTIONS:-10000}
+      
+      # Parallel mode settings
+      - MIN_BALANCE=${MIN_BALANCE:-100000}
+      - WALLET_COUNT=${WALLET_COUNT:-1000}
+      - FUNDING_AMOUNT=${FUNDING_AMOUNT:-100}
+      - TX_DATA=${TX_DATA:-lets bomb the network with transactions! AMF to the moon : ) 🚀}
+    # Uncomment if you need to connect to host network (for local node)
+    # network_mode: "host"
+    restart: unless-stopped
+
