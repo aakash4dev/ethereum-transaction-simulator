@@ -76,15 +76,27 @@ go run scripts/extract-key.go $(find ./local-node-data/keystore -type f | head -
 
 ### 5. Run Stress Test
 
+**Option 1: Direct Go execution**
 ```bash
 go run cmd/simulator/main.go
 ```
 
-Or build and run:
-
+**Option 2: Build and run**
 ```bash
 go build -o simulator ./cmd/simulator
 ./simulator
+```
+
+**Option 3: Using Docker**
+```bash
+# Build the Docker image
+docker build -t ethereum-simulator .
+
+# Run with environment variables
+docker run --env-file .env ethereum-simulator
+
+# Or run with docker-compose
+docker-compose up
 ```
 
 ## Configuration
@@ -145,10 +157,16 @@ The tool automatically:
 
 ## Requirements
 
+### For Direct Execution
 - **Go**: 1.20 or higher
 - **EVM-compatible RPC endpoint**: Any blockchain with Ethereum-compatible RPC
 - **Private key**: With sufficient balance for testing
 - **Optional**: Geth for local node testing
+
+### For Docker Execution
+- **Docker**: Docker Engine or Docker Desktop installed
+- **EVM-compatible RPC endpoint**: Any blockchain with Ethereum-compatible RPC
+- **Private key**: With sufficient balance for testing
 
 ## Troubleshooting
 
@@ -201,6 +219,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
 │   ├── start-local-node.sh # Start Geth dev node
 │   └── extract-key.go      # Extract private key from keystore
 ├── .env.example            # Configuration template
+├── Dockerfile              # Docker image definition
+├── docker-compose.yml      # Docker Compose configuration
+├── .dockerignore           # Docker ignore patterns
 ├── CONTRIBUTING.md         # Contribution guidelines
 └── LICENSE                 # MIT License
 ```
