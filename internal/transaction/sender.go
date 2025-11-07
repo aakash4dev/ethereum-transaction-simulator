@@ -131,12 +131,46 @@ func (s *Sender) SendTransactions() error {
 
 		fmt.Printf("Transaction hash: %s\n", signedTx.Hash().Hex())
 
+		// Wait for transaction to be mined/confirmed before sending next
 		if i < s.config.MaxTransactions-1 {
-			time.Sleep(time.Duration(s.config.DelaySeconds) * time.Second)
+			if s.config.DelaySeconds > 0 {
+				// Wait for transaction receipt or use delay as fallback
+				receipt, err := s.waitForTransaction(ctx, signedTx.Hash())
+				if err != nil {
+					// If receipt wait fails, use delay as fallback
+					time.Sleep(time.Duration(s.config.DelaySeconds) * time.Second)
+				} else if receipt != nil {
+					fmt.Printf("Transaction confirmed in block %d\n", receipt.BlockNumber.Uint64())
+				}
+			} else {
+				// No delay configured, still wait for receipt to avoid nonce errors
+				s.waitForTransaction(ctx, signedTx.Hash())
+			}
 		}
 	}
 
 	return nil
+}
+
+// waitForTransaction waits for a transaction to be mined and returns the receipt
+func (s *Sender) waitForTransaction(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	timeout := time.After(30 * time.Second)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return nil, fmt.Errorf("timeout waiting for transaction %s", txHash.Hex())
+		case <-ticker.C:
+			receipt, err := s.client.TransactionReceipt(ctx, txHash)
+			if err == nil && receipt != nil {
+				return receipt, nil
+			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 }
 
 // Close closes the Ethereum client connection
