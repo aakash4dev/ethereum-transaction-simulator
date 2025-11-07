@@ -3,6 +3,7 @@
 
 # Build artifacts
 simulator
+cmd/simulator/simulator
 *.exe
 *.exe~
 *.dll
