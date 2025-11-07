@@ -2,7 +2,22 @@
 
 **Stress testing tool for EVM-compatible blockchains**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/Go-1.20+-00ADD8?logo=go)](https://golang.org/)
+
 This tool is designed to stress test your blockchain and verify that transactions and smart contract deployment work correctly on EVM-compatible chains.
+
+## Table of Contents
+
+- [Purpose](#purpose)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Modes](#modes)
+- [How It Works](#how-it-works)
+- [Requirements](#requirements)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Purpose
 
@@ -12,23 +27,43 @@ This tool is designed to stress test your blockchain and verify that transaction
 
 ## Quick Start
 
-### 1. Setup
+### 1. Prerequisites
+
+- Go 1.20 or higher
+- EVM-compatible RPC endpoint
+- Private key with sufficient balance
+- (Optional) Geth for local testing
+
+### 2. Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/aakash4dev/ethereum-transaction-simulator.git
+cd ethereum-transaction-simulator
+
+# Install dependencies
+go mod download
+```
+
+### 3. Configuration
 
 ```bash
 # Copy environment file
 cp .env.example .env
 
 # Edit .env and set your private key and RPC URL
-nano .env
+nano .env  # or use your preferred editor
 ```
 
-Required in `.env`:
+**Required in `.env`:**
 ```bash
 PRIVATE_KEY=your_private_key_here
 RPC_URL=http://127.0.0.1:8545
 ```
 
-### 2. Start Local Node (Optional)
+### 4. Start Local Node (Optional)
+
+For local testing with Geth:
 
 ```bash
 ./scripts/start-local-node.sh
@@ -39,15 +74,22 @@ RPC_URL=http://127.0.0.1:8545
 go run scripts/extract-key.go $(find ./local-node-data/keystore -type f | head -1)
 ```
 
-### 3. Run Stress Test
+### 5. Run Stress Test
 
 ```bash
 go run cmd/simulator/main.go
 ```
 
+Or build and run:
+
+```bash
+go build -o simulator ./cmd/simulator
+./simulator
+```
+
 ## Configuration
 
-Edit `.env` file:
+Edit `.env` file with your settings:
 
 ```bash
 # Required
@@ -70,10 +112,17 @@ FUNDING_AMOUNT=100     # Amount to fund each wallet (wei)
 
 ## Modes
 
-- **`parallel`** (recommended for stress testing) - Creates 1000 wallets and sends transactions continuously from all wallets until balance runs out. Maximum TPS mode with no delays.
-- **`all`** - Runs transfers and contract operations in parallel
-- **`transfer`** - Sends transactions to 25 random addresses
-- **`deploy`** - Deploys auto-generated smart contracts
+### `parallel` (Recommended for Stress Testing)
+Creates 1000 wallets and sends transactions continuously from all wallets until balance runs out. Maximum TPS mode with no delays.
+
+### `all`
+Runs transfers and contract operations in parallel.
+
+### `transfer`
+Sends transactions to 25 random addresses.
+
+### `deploy`
+Deploys auto-generated smart contracts.
 
 ## How It Works
 
@@ -96,27 +145,53 @@ The tool automatically:
 
 ## Requirements
 
-- Go 1.20+
-- EVM-compatible RPC endpoint
-- Private key with sufficient balance
-- (Optional) Geth for local testing
+- **Go**: 1.20 or higher
+- **EVM-compatible RPC endpoint**: Any blockchain with Ethereum-compatible RPC
+- **Private key**: With sufficient balance for testing
+- **Optional**: Geth for local node testing
 
 ## Troubleshooting
 
-**"PRIVATE_KEY required"**
+### "PRIVATE_KEY required"
 - Set `PRIVATE_KEY` in `.env` file
+- Ensure the key is in hex format (with or without `0x` prefix)
 
-**"failed to connect to RPC"**
+### "failed to connect to RPC"
 - Start local node: `./scripts/start-local-node.sh`
 - Or update `RPC_URL` in `.env` to point to your blockchain RPC
+- Check if the RPC endpoint is accessible
 
-**"replacement transaction underpriced"**
-- Fixed - uses thread-safe nonce management
+### "replacement transaction underpriced"
+- This is fixed - the tool uses thread-safe nonce management
+- If you still see this, ensure you're using the latest version
+
+### "insufficient funds"
+- Ensure your wallet has sufficient balance
+- Check gas price and gas limit settings
+- For parallel mode, ensure balance > MIN_BALANCE
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on:
+
+- Code of conduct
+- Development process
+- Code style guidelines
+- How to submit pull requests
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
+
+## Use Cases
+
+- **Blockchain Development**: Test your EVM-compatible chain before mainnet
+- **TPS Benchmarking**: Measure maximum transactions per second
+- **Network Stress Testing**: Test network capacity under load
+- **Functionality Verification**: Ensure transactions and contracts work correctly
 
 ## Project Structure
 
 ```
-├── cmd/simulator/          # Main application
+├── cmd/simulator/          # Main application entry point
 ├── internal/
 │   ├── config/             # Configuration (.env loader)
 │   ├── transaction/        # Transaction sending + nonce management
@@ -125,12 +200,17 @@ The tool automatically:
 ├── scripts/
 │   ├── start-local-node.sh # Start Geth dev node
 │   └── extract-key.go      # Extract private key from keystore
-└── .env.example            # Configuration template
+├── .env.example            # Configuration template
+├── CONTRIBUTING.md         # Contribution guidelines
+└── LICENSE                 # MIT License
 ```
 
-## Use Cases
+## License
 
-- **Blockchain Development**: Test your EVM-compatible chain before mainnet
-- **TPS Benchmarking**: Measure maximum transactions per second
-- **Network Stress Testing**: Test network capacity under load
-- **Functionality Verification**: Ensure transactions and contracts work correctly
+Copyright (c) 2024 Ethereum Transaction Simulator Contributors
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Disclaimer
+
+This tool is for testing and development purposes only. Use responsibly and only on test networks or with permission on private networks. The authors are not responsible for any misuse of this software.
