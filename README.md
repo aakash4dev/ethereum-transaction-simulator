@@ -78,7 +78,7 @@ go run scripts/extract-key.go $(find ./local-node-data/keystore -type f | head -
 
 **Option 1: Direct Go execution**
 ```bash
-go run cmd/simulator/main.go
+go run cmd/simulator/parallel.go
 ```
 
 **Option 2: Build and run**

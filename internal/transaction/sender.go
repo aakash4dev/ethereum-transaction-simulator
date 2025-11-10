@@ -106,9 +106,21 @@ func (s *Sender) SendTransactions() error {
 			return fmt.Errorf("failed to get nonce: %w", err)
 		}
 
-		gasPrice, err := s.client.SuggestGasPrice(context.Background())
+		// Retry getting gas price in case of transient node errors
+		var gasPrice *big.Int
+		maxRetries := 3
+		for retry := 0; retry < maxRetries; retry++ {
+			gasPrice, err = s.client.SuggestGasPrice(context.Background())
+			if err == nil {
+				break
+			}
+			if retry < maxRetries-1 {
+				// Wait a bit before retrying (exponential backoff)
+				time.Sleep(time.Duration(retry+1) * 200 * time.Millisecond)
+			}
+		}
 		if err != nil {
-			return fmt.Errorf("failed to get gas price: %w", err)
+			return fmt.Errorf("failed to get gas price after %d retries: %w", maxRetries, err)
 		}
 
 		tx := types.NewTransaction(
@@ -131,7 +143,8 @@ func (s *Sender) SendTransactions() error {
 
 		fmt.Printf("Transaction hash: %s\n", signedTx.Hash().Hex())
 
-		// Wait for transaction to be mined/confirmed before sending next
+		// Wait for transaction to be accepted into mempool before sending next
+		// This prevents nonce conflicts when sending transactions rapidly
 		if i < s.config.MaxTransactions-1 {
 			if s.config.DelaySeconds > 0 {
 				// Wait for transaction receipt or use delay as fallback
@@ -143,8 +156,9 @@ func (s *Sender) SendTransactions() error {
 					fmt.Printf("Transaction confirmed in block %d\n", receipt.BlockNumber.Uint64())
 				}
 			} else {
-				// No delay configured, still wait for receipt to avoid nonce errors
-				s.waitForTransaction(ctx, signedTx.Hash())
+				// No delay configured - wait for nonce to update (node has accepted tx)
+				// This is faster than waiting for full confirmation but ensures mempool sync
+				s.nonceManager.WaitForNonceUpdate(ctx, nonce, 2*time.Second)
 			}
 		}
 	}

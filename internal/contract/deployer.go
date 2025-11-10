@@ -107,9 +107,21 @@ func (d *Deployer) DeployContract() ([]common.Address, error) {
 			return nil, fmt.Errorf("failed to get nonce: %w", err)
 		}
 
-		gasPrice, err := d.client.SuggestGasPrice(context.Background())
+		// Retry getting gas price in case of transient node errors
+		var gasPrice *big.Int
+		maxRetries := 3
+		for retry := 0; retry < maxRetries; retry++ {
+			gasPrice, err = d.client.SuggestGasPrice(context.Background())
+			if err == nil {
+				break
+			}
+			if retry < maxRetries-1 {
+				// Wait a bit before retrying (exponential backoff)
+				time.Sleep(time.Duration(retry+1) * 200 * time.Millisecond)
+			}
+		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to get gas price: %w", err)
+			return nil, fmt.Errorf("failed to get gas price after %d retries: %w", maxRetries, err)
 		}
 
 		tx := types.NewContractCreation(nonce, d.config.Value, d.config.GasLimit, gasPrice, bytecode)
@@ -130,8 +142,17 @@ func (d *Deployer) DeployContract() ([]common.Address, error) {
 		fmt.Printf("Deployment transaction hash: %s, contract address: %s\n", 
 			signedTx.Hash().Hex(), contractAddress.Hex())
 
+		// Wait for the node to accept the transaction into mempool before proceeding
+		// This prevents nonce conflicts when sending transactions rapidly
 		if i < d.config.MaxTransactions-1 {
-			time.Sleep(time.Duration(d.config.DelaySeconds) * time.Second)
+			if d.config.DelaySeconds > 0 {
+				// Wait for transaction receipt or use delay as fallback
+				time.Sleep(time.Duration(d.config.DelaySeconds) * time.Second)
+			} else {
+				// Wait for nonce to update (node has accepted tx into mempool)
+				// This ensures PendingNonceAt will reflect our transaction
+				d.nonceManager.WaitForNonceUpdate(ctx, nonce, 2*time.Second)
+			}
 		}
 	}
 
@@ -168,9 +189,21 @@ func (d *Deployer) InteractWithContract(contractAddresses []common.Address) erro
 			return fmt.Errorf("failed to get nonce: %w", err)
 		}
 
-		gasPrice, err := d.client.SuggestGasPrice(context.Background())
+		// Retry getting gas price in case of transient node errors
+		var gasPrice *big.Int
+		maxRetries := 3
+		for retry := 0; retry < maxRetries; retry++ {
+			gasPrice, err = d.client.SuggestGasPrice(context.Background())
+			if err == nil {
+				break
+			}
+			if retry < maxRetries-1 {
+				// Wait a bit before retrying (exponential backoff)
+				time.Sleep(time.Duration(retry+1) * 200 * time.Millisecond)
+			}
+		}
 		if err != nil {
-			return fmt.Errorf("failed to get gas price: %w", err)
+			return fmt.Errorf("failed to get gas price after %d retries: %w", maxRetries, err)
 		}
 
 		tx := types.NewTransaction(
