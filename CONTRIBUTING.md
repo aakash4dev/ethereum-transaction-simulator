@@ -36,7 +36,7 @@ If you find a bug or have a feature request:
    - Keep functions focused and small
 4. **Test your changes**:
    ```bash
-   go build ./cmd/simulator
+   go build ./cmd/simulator/main.go
    go test ./...
    ```
 5. **Commit your changes**:

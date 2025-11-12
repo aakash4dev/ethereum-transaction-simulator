@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/airchains-studio/mvp-bomber/internal/transaction"
+	"github.com/aakash4dev/ethereum-transaction-simulator/internal/transaction"
 )
 
 // Wallet represents a wallet with its private key and nonce manager
