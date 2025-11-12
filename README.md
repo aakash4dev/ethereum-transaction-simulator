@@ -78,7 +78,7 @@ go run scripts/extract-key.go $(find ./local-node-data/keystore -type f | head -
 
 **Option 1: Direct Go execution**
 ```bash
-go run cmd/simulator/parallel.go
+go run cmd/simulator/main.go
 ```
 
 **Option 2: Build and run**
@@ -115,11 +115,16 @@ MODE=parallel          # parallel, all, transfer, or deploy
 VALUE=1                 # Amount to send per transaction (wei)
 GAS_LIMIT=210000       # Gas limit per transaction
 MAX_TRANSACTIONS=10000 # Not used in parallel mode
+DELAY_SECONDS=1        # Delay between transactions in seconds (not used in parallel mode)
+RETRY_DELAY=10         # Delay before retrying failed operations (seconds)
 
 # Parallel Mode (Maximum Stress Test)
 MIN_BALANCE=100000     # Minimum balance to create wallets (wei)
 WALLET_COUNT=1000      # Number of wallets to create
 FUNDING_AMOUNT=100     # Amount to fund each wallet (wei)
+MAX_CONCURRENT_REQUESTS=2000  # Maximum concurrent RPC requests
+BALANCE_CHECK_INTERVAL=100    # Check balance every N transactions
+FUNDING_CONCURRENCY=50        # Concurrent funding operations
 ```
 
 ## Modes
@@ -135,6 +140,16 @@ Sends transactions to 25 random addresses.
 
 ### `deploy`
 Deploys auto-generated smart contracts.
+
+## Features
+
+- ✅ **Graceful Shutdown**: Press Ctrl+C to safely stop the simulator
+- ✅ **Error Handling**: Comprehensive error reporting and retry logic
+- ✅ **Transaction Verification**: Automatic verification of sent transactions
+- ✅ **Configurable Rate Limiting**: Control concurrent requests to protect RPC nodes
+- ✅ **Balance Caching**: Optimized balance checks to reduce RPC calls
+- ✅ **Input Validation**: Validates all configuration before execution
+- ✅ **Multiple Modes**: Support for transfers, deployments, interactions, and parallel stress testing
 
 ## How It Works
 
@@ -209,19 +224,27 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
 ## Project Structure
 
 ```
-├── cmd/simulator/          # Main application entry point
+├── cmd/
+│   └── simulator/
+│       └── main.go         # Main application entry point
 ├── internal/
-│   ├── config/             # Configuration (.env loader)
+│   ├── config/             # Configuration (.env loader & validation)
 │   ├── transaction/        # Transaction sending + nonce management
+│   │   ├── parallel.go     # Parallel transaction sender
+│   │   ├── sender.go       # Sequential transaction sender
+│   │   └── nonce.go        # Thread-safe nonce manager
 │   ├── contract/           # Contract deployment & interaction
+│   │   ├── deployer.go     # Contract deployment logic
+│   │   └── generator.go    # Contract bytecode generation
 │   └── wallet/             # Wallet generation & management
+│       └── manager.go      # Wallet manager for parallel mode
 ├── scripts/
 │   ├── start-local-node.sh # Start Geth dev node
-│   └── extract-key.go      # Extract private key from keystore
+│   ├── extract-key.go      # Extract private key from keystore
+│   └── test.sh             # Test script
 ├── .env.example            # Configuration template
 ├── Dockerfile              # Docker image definition
 ├── docker-compose.yml      # Docker Compose configuration
-├── .dockerignore           # Docker ignore patterns
 ├── CONTRIBUTING.md         # Contribution guidelines
 └── LICENSE                 # MIT License
 ```

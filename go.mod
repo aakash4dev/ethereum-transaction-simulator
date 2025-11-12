@@ -1,4 +1,4 @@
-module github.com/airchains-studio/mvp-bomber
+module github.com/aakash4dev/ethereum-transaction-simulator
 
 go 1.20
 
